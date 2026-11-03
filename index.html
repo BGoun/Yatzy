@@ -1,0 +1,1327 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#10131c">
+<title>YATZY CLASSIC</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+<style>
+:root {
+    --bg: #10131c;
+    --panel: #191e2c;
+    --panel2: #111520;
+    --border: #2b3245;
+    --accent: #a78bfa;
+    --accent2: #c4b5fd;
+    --green: #43c99b;
+    --text: #f4f5fa;
+    --muted: #8790a7;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", sans-serif;
+    padding: 25px;
+}
+
+button {
+    font: inherit;
+    cursor: pointer;
+    border: none;
+}
+
+.container {
+    max-width: 1200px;
+    margin: auto;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.logo {
+    font-size: 27px;
+    font-weight: 900;
+    letter-spacing: 3px;
+}
+
+.logo span {
+    color: var(--accent);
+}
+
+.status {
+    background: #252b3e;
+    color: var(--accent2);
+    padding: 10px 15px;
+    border-radius: 30px;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 20px;
+}
+
+.panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 22px;
+}
+
+.section-title {
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    margin-bottom: 18px;
+}
+
+.game-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 25px;
+}
+
+.round {
+    color: var(--accent);
+    font-size: 12px;
+}
+
+.roll-count {
+    background: #292f42;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 12px;
+}
+
+.dice-container {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 25px;
+}
+
+.die {
+    aspect-ratio: 1;
+    background: #f5f5fa;
+    color: #252b3c;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(28px, 5vw, 48px);
+    position: relative;
+    user-select: none;
+    transition: .2s;
+}
+
+.die.held {
+    background: #e9ddff;
+    outline: 3px solid var(--accent);
+    transform: translateY(-5px);
+}
+
+.die.held::after {
+    content: "HOLD";
+    position: absolute;
+    bottom: 5px;
+    font-size: 9px;
+    font-weight: 900;
+    color: #7043c7;
+}
+
+.die:hover {
+    filter: brightness(.94);
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.btn {
+    padding: 13px 17px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 900;
+    transition: .2s;
+}
+
+.btn:disabled {
+    opacity: .35;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background: var(--accent);
+    color: #171324;
+}
+
+.btn-success {
+    background: var(--green);
+    color: #10251e;
+}
+
+.btn-secondary {
+    background: #292f42;
+    color: white;
+}
+
+.btn:hover:not(:disabled) {
+    filter: brightness(1.12);
+}
+
+.divider {
+    height: 1px;
+    background: var(--border);
+    margin: 25px 0;
+}
+
+.score-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.score-table th {
+    color: var(--muted);
+    text-align: left;
+    padding: 10px 7px;
+    border-bottom: 1px solid var(--border);
+}
+
+.score-table td {
+    padding: 12px 7px;
+    border-bottom: 1px solid #292e3e;
+}
+
+.score-row {
+    cursor: pointer;
+    transition: .15s;
+}
+
+.score-row:hover {
+    background: #252b3e;
+}
+
+.score-row.selected {
+    background: #30274c;
+    color: var(--accent2);
+}
+
+.score-value {
+    text-align: right;
+    font-weight: 900;
+}
+
+.score-value.filled {
+    color: var(--green);
+}
+
+.total-row {
+    font-weight: 900;
+    color: var(--accent2);
+}
+
+.camera-box {
+    background: var(--panel2);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 15px;
+    min-height: 190px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#webcam-container {
+    width: 100%;
+}
+
+#webcam-container canvas {
+    width: 100% !important;
+    height: auto !important;
+    display: block;
+    transform: scaleX(-1);
+}
+
+.camera-placeholder {
+    min-height: 190px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+}
+
+.camera-placeholder .camera-icon {
+    font-size: 35px;
+}
+
+.camera-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.gesture-info {
+    background: var(--panel2);
+    padding: 15px;
+    border-radius: 12px;
+    margin-top: 15px;
+}
+
+.confidence {
+    color: var(--muted);
+    font-size: 10px;
+}
+
+.gesture-name {
+    color: var(--accent2);
+    font-size: 19px;
+    font-weight: 900;
+    margin: 9px 0;
+}
+
+.predictions {
+    margin-top: 18px;
+}
+
+.prediction {
+    margin-top: 12px;
+    font-size: 10px;
+}
+
+.prediction-label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    color: #aab0c1;
+}
+
+.bar {
+    height: 5px;
+    border-radius: 10px;
+    background: #30364a;
+    overflow: hidden;
+}
+
+.bar-fill {
+    height: 100%;
+    background: var(--accent);
+    transition: width .15s;
+}
+
+.camera-status {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 12px;
+    line-height: 1.6;
+}
+
+.guide {
+    margin-top: 20px;
+    padding: 15px;
+    background: var(--panel2);
+    border-radius: 12px;
+    font-size: 11px;
+    line-height: 2;
+    color: #abb2c5;
+}
+
+.guide strong {
+    color: white;
+}
+
+.game-log {
+    margin-top: 20px;
+    padding: 13px;
+    border-radius: 10px;
+    background: var(--panel2);
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.7;
+}
+
+.footer {
+    text-align: center;
+    color: #626c82;
+    font-size: 10px;
+    margin-top: 25px;
+    letter-spacing: 1px;
+}
+
+.toast {
+    position: fixed;
+    bottom: 25px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--accent);
+    color: #171324;
+    padding: 13px 20px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 900;
+    opacity: 0;
+    pointer-events: none;
+    transition: .2s;
+    z-index: 100;
+}
+
+.toast.show {
+    opacity: 1;
+}
+
+@media(max-width: 850px) {
+    .layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media(max-width: 500px) {
+    body {
+        padding: 12px;
+    }
+
+    .panel {
+        padding: 15px;
+    }
+
+    .dice-container {
+        gap: 6px;
+    }
+
+    .logo {
+        font-size: 21px;
+    }
+
+    .btn {
+        flex: 1;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<header>
+    <div class="logo">YATZY <span>CLASSIC</span></div>
+    <div class="status" id="game-status">● READY TO PLAY</div>
+</header>
+
+<div class="layout">
+
+<main class="panel">
+
+    <div class="game-info">
+        <div>
+            <div class="section-title">GAME BOARD</div>
+            <div class="round" id="round-text">ROUND 1 / 13</div>
+        </div>
+
+        <div class="roll-count" id="roll-text">ROLL 0 / 3</div>
+    </div>
+
+    <div class="dice-container" id="dice-container"></div>
+
+    <div class="actions">
+        <button class="btn btn-primary" id="roll-btn" onclick="rollDice()">
+            ✊ ROLL DICE
+        </button>
+
+        <button class="btn btn-success" id="confirm-btn" onclick="confirmScore()">
+            👍 CONFIRM SCORE
+        </button>
+
+        <button class="btn btn-secondary" onclick="resetGame()">
+            ↻ NEW GAME
+        </button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-title">SCORE BOARD</div>
+
+    <table class="score-table">
+        <thead>
+            <tr>
+                <th>CATEGORY</th>
+                <th style="text-align:right">SCORE</th>
+            </tr>
+        </thead>
+
+        <tbody id="score-board"></tbody>
+    </table>
+
+    <div class="game-log" id="game-log">
+        게임을 시작하려면 주사위를 굴려주세요.
+    </div>
+
+</main>
+
+<aside class="panel">
+
+    <div class="section-title">CAMERA CONTROL</div>
+
+    <div class="camera-box">
+        <div id="webcam-container">
+            <div class="camera-placeholder">
+                <div class="camera-icon">📷</div>
+                CAMERA NOT CONNECTED
+            </div>
+        </div>
+    </div>
+
+    <div class="camera-controls">
+
+        <button class="btn btn-primary" id="connect-btn"
+                onclick="connectCamera()">
+            카메라 연결 및 AI 모델 불러오기
+        </button>
+
+        <button class="btn btn-secondary"
+                onclick="disconnectCamera()">
+            카메라 연결 해제
+        </button>
+
+    </div>
+
+    <div class="gesture-info">
+        <div class="confidence">CURRENT GESTURE</div>
+
+        <div class="gesture-name" id="gesture-name">
+            대기 중
+        </div>
+
+        <div class="confidence" id="confidence-text">
+            Confidence: 0%
+        </div>
+    </div>
+
+    <div class="predictions" id="predictions"></div>
+
+    <div class="camera-status" id="camera-status">
+        model/ 폴더의 AI 모델을 기다리는 중입니다.
+    </div>
+
+    <div class="guide">
+        <strong>GESTURE GUIDE</strong><br>
+        ✊ roll : 주사위 굴리기<br>
+        ☝️ hold_1 : 1번 주사위<br>
+        ✌️ hold_2 : 2번 주사위<br>
+        🤟 hold_3 : 3번 주사위<br>
+        🖖 hold_4 : 4번 주사위<br>
+        🖐️ hold_5 : 5번 주사위<br>
+        👍 confirm : 점수 확정
+    </div>
+
+</aside>
+
+</div>
+
+<div class="footer">
+    YATZY CLASSIC · GESTURE CONTROL SYSTEM
+</div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+
+// ========================================
+// CONFIGURATION
+// ========================================
+
+const MODEL_PATH = "./model/";
+
+const MIN_CONFIDENCE = 0.85;
+const STABLE_FRAMES = 3;
+
+const categories = [
+    { id: "ones", name: "Ones (1)" },
+    { id: "twos", name: "Twos (2)" },
+    { id: "threes", name: "Threes (3)" },
+    { id: "fours", name: "Fours (4)" },
+    { id: "fives", name: "Fives (5)" },
+    { id: "sixes", name: "Sixes (6)" },
+    { id: "three", name: "3 Of A Kind" },
+    { id: "four", name: "4 Of A Kind" },
+    { id: "full", name: "Full House" },
+    { id: "small", name: "Small Straight" },
+    { id: "large", name: "Large Straight" },
+    { id: "yatzy", name: "YATZY" },
+    { id: "chance", name: "Chance" }
+];
+
+const upperIds = [
+    "ones", "twos", "threes",
+    "fours", "fives", "sixes"
+];
+
+const gestureNames = {
+    roll: "✊ ROLL",
+    hold_1: "☝️ HOLD 1",
+    hold_2: "✌️ HOLD 2",
+    hold_3: "🤟 HOLD 3",
+    hold_4: "🖖 HOLD 4",
+    hold_5: "🖐️ HOLD 5",
+    confirm: "👍 CONFIRM"
+};
+
+// ========================================
+// GAME STATE
+// ========================================
+
+let dice = [1, 1, 1, 1, 1];
+let held = [false, false, false, false, false];
+
+let rolls = 0;
+let round = 1;
+
+let scores = {};
+let selected = null;
+let gameOver = false;
+
+// ========================================
+// CAMERA STATE
+// ========================================
+
+let model = null;
+let webcam = null;
+
+let cameraRunning = false;
+let predicting = false;
+
+let stableGesture = "";
+let stableCount = 0;
+let gestureLocked = false;
+
+let lastGesture = "";
+
+let toastTimer = null;
+
+// ========================================
+// GAME UI
+// ========================================
+
+function renderDice() {
+
+    const container = document.getElementById("dice-container");
+
+    const faces = [
+        "", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"
+    ];
+
+    container.innerHTML = dice.map((value, index) => `
+        <div class="die ${held[index] ? "held" : ""}"
+             onclick="toggleHold(${index})">
+            ${faces[value]}
+        </div>
+    `).join("");
+
+    document.getElementById("roll-text").textContent =
+        `ROLL ${rolls} / 3`;
+
+    document.getElementById("round-text").textContent =
+        `ROUND ${Math.min(round, 13)} / 13`;
+
+    document.getElementById("roll-btn").disabled =
+        rolls >= 3 || gameOver;
+
+    document.getElementById("confirm-btn").disabled =
+        rolls === 0 || !selected || gameOver;
+}
+
+function getUpperTotal() {
+
+    return upperIds.reduce(
+        (sum, id) => sum + (scores[id] ?? 0), 0
+    );
+}
+
+function getLowerTotal() {
+
+    return categories
+        .filter(c => !upperIds.includes(c.id))
+        .reduce((sum, c) => sum + (scores[c.id] ?? 0), 0);
+}
+
+function getBonus() {
+
+    return getUpperTotal() >= 63 ? 35 : 0;
+}
+
+function getTotalScore() {
+
+    return getUpperTotal() + getLowerTotal() + getBonus();
+}
+
+function renderScores() {
+
+    const board = document.getElementById("score-board");
+
+    function createRow(category) {
+
+        const filled = scores[category.id] !== undefined;
+
+        return `
+        <tr class="score-row ${selected === category.id ? "selected" : ""}"
+            onclick="selectCategory('${category.id}')">
+
+            <td>${category.name}</td>
+
+            <td class="score-value ${filled ? "filled" : ""}">
+                ${filled ? scores[category.id] : "—"}
+            </td>
+
+        </tr>
+        `;
+    }
+
+    board.innerHTML = `
+        ${categories.filter(c => upperIds.includes(c.id))
+            .map(createRow).join("")}
+
+        <tr class="total-row">
+            <td>UPPER BONUS</td>
+            <td class="score-value">${getBonus()}</td>
+        </tr>
+
+        ${categories.filter(c => !upperIds.includes(c.id))
+            .map(createRow).join("")}
+
+        <tr class="total-row">
+            <td>UPPER TOTAL</td>
+            <td class="score-value">${getUpperTotal()}</td>
+        </tr>
+
+        <tr class="total-row">
+            <td>LOWER TOTAL</td>
+            <td class="score-value">${getLowerTotal()}</td>
+        </tr>
+
+        <tr class="total-row">
+            <td>FINAL SCORE</td>
+            <td class="score-value">${getTotalScore()}</td>
+        </tr>
+    `;
+}
+
+function updateUI() {
+    renderDice();
+    renderScores();
+}
+
+// ========================================
+// GAME LOGIC
+// ========================================
+
+function rollDice() {
+
+    if (gameOver || rolls >= 3) return;
+
+    for (let i = 0; i < 5; i++) {
+
+        if (!held[i]) {
+            dice[i] = Math.floor(Math.random() * 6) + 1;
+        }
+    }
+
+    rolls++;
+
+    updateUI();
+
+    log(`주사위 굴리기 완료 (${rolls}/3)`);
+}
+
+function toggleHold(index) {
+
+    if (rolls === 0 || rolls >= 3 || gameOver) return;
+
+    held[index] = !held[index];
+
+    updateUI();
+
+    log(
+        `${index + 1}번 주사위 ${
+            held[index] ? "고정" : "해제"
+        }`
+    );
+}
+
+function selectCategory(id) {
+
+    if (gameOver || scores[id] !== undefined) return;
+
+    selected = id;
+
+    updateUI();
+
+    log(
+        `${categories.find(c => c.id === id).name} 선택`
+    );
+}
+
+// ========================================
+// SCORE CALCULATION
+// ========================================
+
+function calculateScore(id) {
+
+    const counts = Array(7).fill(0);
+
+    dice.forEach(value => counts[value]++);
+
+    const sum = dice.reduce((a, b) => a + b, 0);
+
+    const sorted = [...dice].sort((a, b) => a - b);
+
+    switch (id) {
+
+        case "ones":
+        case "twos":
+        case "threes":
+        case "fours":
+        case "fives":
+        case "sixes": {
+
+            const target = upperIds.indexOf(id) + 1;
+
+            return dice.filter(v => v === target).length * target;
+        }
+
+        case "three":
+            return counts.some(v => v >= 3) ? sum : 0;
+
+        case "four":
+            return counts.some(v => v >= 4) ? sum : 0;
+
+        case "full": {
+
+            const values = counts.filter(v => v > 0);
+
+            return values.length === 2 &&
+                   values.includes(3) &&
+                   values.includes(2) ? 25 : 0;
+        }
+
+        case "small": {
+
+            const unique = [...new Set(sorted)];
+
+            const sequences = [
+                [1, 2, 3, 4],
+                [2, 3, 4, 5],
+                [3, 4, 5, 6]
+            ];
+
+            return sequences.some(sequence =>
+                sequence.every(v => unique.includes(v))
+            ) ? 30 : 0;
+        }
+
+        case "large": {
+
+            const valid = [
+                "1,2,3,4,5",
+                "2,3,4,5,6"
+            ];
+
+            return valid.includes(sorted.join(",")) ? 40 : 0;
+        }
+
+        case "yatzy":
+            return counts.some(v => v === 5) ? 50 : 0;
+
+        case "chance":
+            return sum;
+
+        default:
+            return 0;
+    }
+}
+
+// ========================================
+// CONFIRM SCORE
+// ========================================
+
+function confirmScore() {
+
+    if (gameOver || rolls === 0 || !selected) {
+
+        showToast("점수 칸을 먼저 선택하세요.");
+        return;
+    }
+
+    const result = calculateScore(selected);
+
+    const name = categories.find(
+        c => c.id === selected
+    ).name;
+
+    scores[selected] = result;
+
+    log(`${name} : ${result}점 확정`);
+
+    selected = null;
+
+    rolls = 0;
+
+    held = [false, false, false, false, false];
+
+    round++;
+
+    if (round > 13) {
+
+        gameOver = true;
+
+        document.getElementById("game-status").textContent =
+            "● GAME FINISHED";
+
+        showToast(`게임 종료! 최종 점수 ${getTotalScore()}점`);
+    }
+
+    updateUI();
+}
+
+// ========================================
+// RESET
+// ========================================
+
+function resetGame() {
+
+    dice = [1, 1, 1, 1, 1];
+    held = [false, false, false, false, false];
+
+    rolls = 0;
+    round = 1;
+
+    scores = {};
+    selected = null;
+    gameOver = false;
+
+    document.getElementById("game-status").textContent =
+        cameraRunning ? "● CAMERA CONNECTED" : "● READY TO PLAY";
+
+    updateUI();
+
+    log("새 게임이 시작되었습니다.");
+
+    showToast("새 게임 시작!");
+}
+
+// ========================================
+// LOG & TOAST
+// ========================================
+
+function log(message) {
+
+    document.getElementById("game-log").textContent =
+        message;
+}
+
+function showToast(message) {
+
+    const toast = document.getElementById("toast");
+
+    toast.textContent = message;
+
+    toast.classList.add("show");
+
+    clearTimeout(toastTimer);
+
+    toastTimer = setTimeout(() => {
+        toast.classList.remove("show");
+    }, 1800);
+}
+
+// ========================================
+// CAMERA & MODEL CONNECTION
+// ========================================
+
+async function connectCamera() {
+
+    if (cameraRunning) {
+        showToast("이미 카메라가 연결되어 있습니다.");
+        return;
+    }
+
+    if (!window.isSecureContext) {
+
+        showToast("HTTPS 또는 localhost에서 실행하세요.");
+
+        document.getElementById("camera-status").textContent =
+            "보안 연결이 필요합니다.";
+
+        return;
+    }
+
+    const connectButton = document.getElementById("connect-btn");
+
+    connectButton.disabled = true;
+    connectButton.textContent = "AI MODEL LOADING...";
+
+    document.getElementById("camera-status").textContent =
+        "Teachable Machine 모델을 불러오는 중입니다.";
+
+    try {
+
+        // 1. 로컬 폴더에서 모델 불러오기
+
+        const modelURL = MODEL_PATH + "model.json";
+        const metadataURL = MODEL_PATH + "metadata.json";
+
+        model = await tmImage.load(
+            modelURL,
+            metadataURL
+        );
+
+        // 2. 모델 클래스 확인
+
+        const classNames = model.getClassLabels();
+
+        const requiredClasses = [
+            "roll",
+            "hold_1",
+            "hold_2",
+            "hold_3",
+            "hold_4",
+            "hold_5",
+            "confirm"
+        ];
+
+        const missing = requiredClasses.filter(
+            name => !classNames.includes(name)
+        );
+
+        if (missing.length > 0) {
+
+            throw new Error(
+                "모델 클래스 누락: " + missing.join(", ")
+            );
+        }
+
+        // 3. 웹캠 권한 요청
+
+        webcam = new tmImage.Webcam(
+            320,
+            240,
+            true
+        );
+
+        await webcam.setup({
+            facingMode: "user"
+        });
+
+        await webcam.play();
+
+        // 4. 카메라 화면 표시
+
+        const container = document.getElementById(
+            "webcam-container"
+        );
+
+        container.innerHTML = "";
+
+        container.appendChild(webcam.canvas);
+
+        // 5. 상태 초기화
+
+        cameraRunning = true;
+
+        stableGesture = "";
+        stableCount = 0;
+        gestureLocked = false;
+        lastGesture = "";
+
+        document.getElementById("camera-status").textContent =
+            "카메라 연결 완료 · 실시간 제스처 인식 중";
+
+        document.getElementById("game-status").textContent =
+            "● CAMERA CONNECTED";
+
+        connectButton.textContent = "CAMERA CONNECTED";
+
+        showToast("AI 모델 및 카메라 연결 완료!");
+
+        // 6. AI 인식 시작
+
+        requestAnimationFrame(cameraLoop);
+
+    } catch (error) {
+
+        console.error(error);
+
+        cameraRunning = false;
+
+        if (webcam) {
+            webcam.stop();
+            webcam = null;
+        }
+
+        model = null;
+
+        connectButton.textContent = "다시 연결하기";
+
+        document.getElementById("game-status").textContent =
+            "● CONNECTION FAILED";
+
+        document.getElementById("camera-status").textContent =
+            error.message || "연결에 실패했습니다.";
+
+        showToast("연결 실패: 모델 파일과 카메라 권한을 확인하세요.");
+
+    } finally {
+
+        connectButton.disabled = false;
+    }
+}
+
+// ========================================
+// REAL-TIME PREDICTION
+// ========================================
+
+async function cameraLoop() {
+
+    if (!cameraRunning || !webcam || !model || predicting) {
+        return;
+    }
+
+    predicting = true;
+
+    try {
+
+        webcam.update();
+
+        const predictions = await model.predict(
+            webcam.canvas
+        );
+
+        predictions.sort(
+            (a, b) => b.probability - a.probability
+        );
+
+        const best = predictions[0];
+
+        updatePredictionUI(predictions);
+
+        const gesture = best.className.trim().toLowerCase();
+
+        const confidence = best.probability;
+
+        document.getElementById("confidence-text").textContent =
+            `Confidence: ${(confidence * 100).toFixed(1)}%`;
+
+        if (confidence >= MIN_CONFIDENCE) {
+
+            document.getElementById("gesture-name").textContent =
+                gestureNames[gesture] || gesture;
+
+            if (gesture === stableGesture) {
+
+                stableCount++;
+
+            } else {
+
+                stableGesture = gesture;
+                stableCount = 1;
+
+                // 다른 제스처로 바뀌면 다시 입력 허용
+
+                gestureLocked = false;
+            }
+
+            if (
+                stableCount >= STABLE_FRAMES &&
+                !gestureLocked
+            ) {
+
+                if (gestureNames[gesture]) {
+
+                    executeGesture(gesture);
+
+                    lastGesture = gesture;
+                }
+
+                gestureLocked = true;
+            }
+
+        } else {
+
+            document.getElementById("gesture-name").textContent =
+                "인식 대기 중";
+
+            stableGesture = "";
+            stableCount = 0;
+
+            gestureLocked = false;
+        }
+
+    } catch (error) {
+
+        console.error("AI Prediction Error:", error);
+
+    } finally {
+
+        predicting = false;
+    }
+
+    if (cameraRunning) {
+
+        requestAnimationFrame(cameraLoop);
+    }
+}
+
+// ========================================
+// GESTURE ACTIONS
+// ========================================
+
+function executeGesture(gesture) {
+
+    switch (gesture) {
+
+        case "roll":
+            rollDice();
+            break;
+
+        case "hold_1":
+            toggleHold(0);
+            break;
+
+        case "hold_2":
+            toggleHold(1);
+            break;
+
+        case "hold_3":
+            toggleHold(2);
+            break;
+
+        case "hold_4":
+            toggleHold(3);
+            break;
+
+        case "hold_5":
+            toggleHold(4);
+            break;
+
+        case "confirm":
+            confirmScore();
+            break;
+    }
+}
+
+// ========================================
+// PREDICTION UI
+// ========================================
+
+function updatePredictionUI(predictions) {
+
+    const container = document.getElementById("predictions");
+
+    container.innerHTML = predictions.map(p => {
+
+        const percentage = p.probability * 100;
+
+        return `
+        <div class="prediction">
+
+            <div class="prediction-label">
+                <span>${p.className}</span>
+                <span>${percentage.toFixed(1)}%</span>
+            </div>
+
+            <div class="bar">
+                <div class="bar-fill"
+                     style="width:${percentage}%">
+                </div>
+            </div>
+
+        </div>
+        `;
+
+    }).join("");
+}
+
+// ========================================
+// CAMERA DISCONNECT
+// ========================================
+
+function disconnectCamera() {
+
+    cameraRunning = false;
+    predicting = false;
+
+    if (webcam) {
+
+        webcam.stop();
+        webcam = null;
+    }
+
+    model = null;
+
+    stableGesture = "";
+    stableCount = 0;
+    gestureLocked = false;
+
+    document.getElementById("webcam-container").innerHTML = `
+        <div class="camera-placeholder">
+            <div class="camera-icon">📷</div>
+            CAMERA NOT CONNECTED
+        </div>
+    `;
+
+    document.getElementById("gesture-name").textContent =
+        "대기 중";
+
+    document.getElementById("confidence-text").textContent =
+        "Confidence: 0%";
+
+    document.getElementById("predictions").innerHTML = "";
+
+    document.getElementById("camera-status").textContent =
+        "카메라 연결이 해제되었습니다.";
+
+    document.getElementById("game-status").textContent =
+        "● READY TO PLAY";
+
+    const connectButton = document.getElementById("connect-btn");
+
+    connectButton.textContent = "카메라 연결 및 AI 모델 불러오기";
+    connectButton.disabled = false;
+
+    showToast("카메라 연결 해제 완료");
+}
+
+// ========================================
+// INITIALIZATION
+// ========================================
+
+updateUI();
+
+</script>
+</body>
+</html>
